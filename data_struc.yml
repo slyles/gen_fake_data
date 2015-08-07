@@ -1,0 +1,40 @@
+## YAML Template.
+---
+# Data Columns
+# category is the faker class and type the method
+# Refer to the Faker documentation at: https://github.com/stympy/faker
+# NOTE:
+# binary is a special category: type can be txt (true/false) or num (1/0)
+#
+num_transactions: 1000
+band_data: yes
+outfile: test_data.wide.csv
+bands_file: yes
+bands_filename: bands_test_data.csv
+dependent: yes
+dependent_cat: outcome
+columns:
+    - name: date
+      category: Date
+      type: Date
+    - name: volume
+      category: Number
+      type: between
+      min: 1
+      max: 10
+    - name: outcome
+      category: Binary
+      type: txt
+    - name: name
+      category: Name
+      type: name
+    - name: message
+      category: Lorem
+      type: sentence
+    - name: value
+      category: Number
+      type: decimal
+      precision: 2
+
+
+

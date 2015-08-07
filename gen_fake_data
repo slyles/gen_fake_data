@@ -1,0 +1,112 @@
+#!/usr/bin/env ruby
+
+require 'csv'
+require 'faker'
+require 'yaml'
+require 'trollop'
+
+@opts = Trollop::options do
+  opt :config_file,  "Configuration file", short: "-c", type: :string
+end
+
+# Options processing here
+Trollop::die("Configuration file is required (-c)") unless @opts[:config_file]
+
+
+#===============================================================================
+def print_data_to_file(filename, dataTable)
+  CSV.open(filename, "wb") do |csv|
+    csv << dataTable.first.keys # adds the attributes name on the first line
+    dataTable.each { |hash| csv << hash.values }
+  end
+end
+
+#===============================================================================
+def get_random_date()
+  year = rand(1970..2015)
+  month = rand(1..12)
+  day = rand(1..28)
+  Date.new(year, month, day).strftime("%m/%d/%Y")
+end
+
+#===============================================================================
+def get_configuration
+  YAML.load_file(@opts[:config_file])
+end
+
+#===============================================================================
+def band_output(config)
+
+  bands_filename = config['bands_filename']
+  outfile = config['outfile']
+  dependent_cat = config['dependent_cat']
+
+  band_cmd = "bandit -t #{outfile}"
+  band_cmd = band_cmd + " -b #{bands_filename}" if config['bands_file']
+  band_cmd = band_cmd + " -d #{dependent_cat}" if config['dependent']
+  system(band_cmd)
+end
+
+#===============================================================================
+def generate_data(config)
+
+  num_transactions = config['num_transactions'].to_i
+
+  data = []
+  for i in 0..num_transactions
+    transaction = {}
+
+    # Iterate through all the columns categories
+    config['columns'].each do |cat|
+      cmd = "Faker::#{cat['category']}.#{cat['type']}"
+
+      # handle values with parameters
+      if (cat['category'] == 'Number')
+        if (cat['type'] == 'between')
+          param_str = "(#{cat['min']}, #{cat['max']})"
+        elsif (cat['type'] == 'decimal')
+          param_str = "(#{cat['precision']})"
+        end
+        cmd = cmd + param_str
+
+      #elsif () TBD: placeholder for other cases with parameters
+
+      end
+
+      # handle non faker categories
+      if (cat['category'] == 'Binary')
+        if (cat['type'] == 'txt')
+          value = (i % 2 == 0)? "true" : "false"
+        else
+          value = (i % 2 == 0)? 1 : 0
+        end
+      elsif (cat['category'] == 'Date')
+        value = get_random_date
+      else # it is a faker category to evaluate value from command
+        value = eval(cmd)
+      end
+
+      transaction[cat['name']] = value
+    end
+
+    data << transaction
+  end
+  data
+end
+
+#===============================================================================
+begin
+  config = get_configuration
+  data = generate_data(config)
+  print_data_to_file(config['outfile'], data)
+
+  band_output(config) if config['band_data']
+
+rescue => e
+  puts "Data generation failed: #{e.message}:\n#{e}"
+ensure
+  puts "DONE"
+end
+
+
+
